@@ -15,7 +15,6 @@ function safeRequire(path) {
 }
 
 // বটগুলো লোড করুন
-safeRequire('./poton');
-safeRequire('./Seven1Tel');
+safeRequire('./degrup');
 
 console.log('Bot1, Bot2, are running...');
