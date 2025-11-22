@@ -18,15 +18,18 @@ const BOT2_TOKEN = process.env.BOT2_TOKEN || "8430148380:AAF3yvkNPJYGoZwmwxoJh9q
 const BOT2_CHAT_ID = process.env.BOT2_CHAT_ID || "-1002789126504";
 
 // === SERVER CONFIG ===
-const BASE_IP = "94.23.120.156";
+const BASE_IP = "139.99.63.204";
 const LOGIN_PAGE_URL = `http://${BASE_IP}/ints/login`;
 const LOGIN_POST_URL = `http://${BASE_IP}/ints/signin`;
 const DASHBOARD_URL = `http://${BASE_IP}/ints/agent/SMSCDRReports`;
 const API_BASE_URL = `http://${BASE_IP}/ints/agent/res/data_smscdr.php`;
 
 // === CREDENTIALS ===
-const USERNAME = process.env.SMS_USER || "yasinffyadin";
-const PASSWORD = process.env.SMS_PASS || "yasinyasg11";
+const USERNAME = process.env.SMS_USER || "Smartmethod";
+const PASSWORD = process.env.SMS_PASS || "Smartmethod904";
+
+// === USER AGENT ===
+const USER_AGENT = "Mozilla/5.0 (Linux; Android 15; Infinix X6858 Build/AP3A.240905.015.A2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.7444.102 Mobile Safari/537.36";
 
 // === INIT ===
 const jar = new tough.CookieJar();
@@ -36,7 +39,6 @@ const bot1 = new TelegramBot(BOT1_TOKEN, { polling: false });
 const bot2 = new TelegramBot(BOT2_TOKEN, { polling: false });
 
 let lastId = null;
-let sessionKey = "";
 
 function getTodayDate() {
     const now = new Date();
@@ -46,13 +48,13 @@ function getTodayDate() {
     return `${year}-${month}-${day}`;
 }
 
-// Helper: Generate API URL with dynamic date and session key
+// Helper: Generate API URL
 function getApiUrl() {
     const today = getTodayDate();
     const fdate1 = encodeURIComponent(`${today} 00:00:00`);
     const fdate2 = encodeURIComponent(`${today} 23:59:59`);
 
-    return `${API_BASE_URL}?fdate1=${fdate1}&fdate2=${fdate2}&frange=&fclient=&fnum=&fcli=&fgdate=&fgmonth=&fgrange=&fgclient=&fgnumber=&fgcli=&fg=0&sesskey=${sessionKey}&sEcho=1&iColumns=9&sColumns=%2C%2C%2C%2C%2C%2C%2C%2C%2C&iDisplayStart=0&iDisplayLength=25&mDataProp_0=0&sSearch_0=&bRegex_0=false&bSearchable_0=true&bSortable_0=true&mDataProp_1=1&sSearch_1=&bRegex_1=false&bSearchable_1=true&bSortable_1=true&mDataProp_2=2&sSearch_2=&bRegex_2=false&bSearchable_2=true&bSortable_2=true&mDataProp_3=3&sSearch_3=&bRegex_3=false&bSearchable_3=true&bSortable_3=true&mDataProp_4=4&sSearch_4=&bRegex_4=false&bSearchable_4=true&bSortable_4=true&mDataProp_5=5&sSearch_5=&bRegex_5=false&bSearchable_5=true&bSortable_5=true&mDataProp_6=6&sSearch_6=&bRegex_6=false&bSearchable_6=true&bSortable_6=true&mDataProp_7=7&sSearch_7=&bRegex_7=false&bSearchable_7=true&bSortable_7=true&mDataProp_8=8&sSearch_8=&bRegex_8=false&bSearchable_8=false&sSearch=&bRegex=false&iSortCol_0=0&sSortDir_0=desc&iSortingCols=1`;
+    return `${API_BASE_URL}?fdate1=${fdate1}&fdate2=${fdate2}&frange=&fclient=&fnum=&fcli=&fgdate=&fgmonth=&fgrange=&fgclient=&fgnumber=&fgcli=&fg=0&sEcho=1&iColumns=9&sColumns=%2C%2C%2C%2C%2C%2C%2C%2C&iDisplayStart=0&iDisplayLength=25&mDataProp_0=0&sSearch_0=&bRegex_0=false&bSearchable_0=true&bSortable_0=true&mDataProp_1=1&sSearch_1=&bRegex_1=false&bSearchable_1=true&bSortable_1=true&mDataProp_2=2&sSearch_2=&bRegex_2=false&bSearchable_2=true&bSortable_2=true&mDataProp_3=3&sSearch_3=&bRegex_3=false&bSearchable_3=true&bSortable_3=true&mDataProp_4=4&sSearch_4=&bRegex_4=false&bSearchable_4=true&bSortable_4=true&mDataProp_5=5&sSearch_5=&bRegex_5=false&bSearchable_5=true&bSortable_5=true&mDataProp_6=6&sSearch_6=&bRegex_6=false&bSearchable_6=true&bSortable_6=true&mDataProp_7=7&sSearch_7=&bRegex_7=false&bSearchable_7=true&bSortable_7=true&mDataProp_8=8&sSearch_8=&bRegex_8=false&bSearchable_8=true&bSortable_8=false&sSearch=&bRegex=false&iSortCol_0=0&sSortDir_0=desc&iSortingCols=1`;
 }
 
 // Extract OTP
@@ -88,9 +90,10 @@ function getCountryInfo(number) {
 
 // Map API row to object
 function mapRow(row) {
+    const uniqueHash = `${row[0]}_${row[2]}_${row[5]}`;
     return {
-        id: row[0],
-        date: row[0],
+        id: uniqueHash,
+        displayId: row[0],
         number: row[2],
         cli: row[3],
         client: row[4],
@@ -102,9 +105,19 @@ function mapRow(row) {
 // Send SMS to BOTH Telegram Bots
 async function sendTelegramSMS(sms) {
     const otp = extractOtp(sms.message) || "N/A";
+
+    // === 🔥 MASK NUMBER LOGIC (Modified Here) 🔥 ===
+    let maskedNumber = sms.number;
+    // যদি নাম্বার ৫ ডিজিট বা তার বেশি হয়, তবেই মাস্ক করবে
+    if (maskedNumber && maskedNumber.length >= 5) {
+        // শেষের ৪টি ডিজিট রাখে, তার আগের ডিজিটটি ☆ বানায়, বাকি সব আগের মতো রাখে
+        maskedNumber = maskedNumber.slice(0, -5) + "☆" + maskedNumber.slice(-4);
+    }
+    // ===============================================
+
     const final = `<b>${sms.country} ${sms.cli} OTP Received...</b>
 
-📞 <b>Number:</b> <code>${sms.number}</code>
+📞 <b>Number:</b> <code>${maskedNumber}</code>
 🌍 <b>𝐂𝐨𝐮𝐧𝐭𝐫𝐲:</b> ${sms.country}
 📱 <b>𝐒𝐞𝐫𝐯𝐢𝐜𝐞:</b> ${sms.cli}
 
@@ -132,7 +145,11 @@ async function sendTelegramSMS(sms) {
 async function performLoginAndSaveCookies() {
     try {
         console.log(`🔐 GET login page (${LOGIN_PAGE_URL})...`);
-        const getRes = await client.get(LOGIN_PAGE_URL, { headers: { "User-Agent": "Mozilla/5.0" } });
+        const getRes = await client.get(LOGIN_PAGE_URL, { 
+            headers: { 
+                "User-Agent": USER_AGENT 
+            } 
+        });
         const $ = cheerio.load(String(getRes.data || ""));
 
         // parse captcha  
@@ -167,7 +184,7 @@ async function performLoginAndSaveCookies() {
                 "Content-Type": "application/x-www-form-urlencoded",
                 "Origin": `http://${BASE_IP}`,
                 "Referer": LOGIN_PAGE_URL,
-                "User-Agent": "Mozilla/5.0",
+                "User-Agent": USER_AGENT,
             },
             maxRedirects: 0,
             validateStatus: s => s >= 200 && s < 400,
@@ -194,51 +211,26 @@ async function performLoginAndSaveCookies() {
     }
 }
 
-// Fetch Dashboard to get Session Key
-async function fetchSessionKey() {
-    try {
-        const res = await client.get(DASHBOARD_URL, {
-            headers: {
-                "User-Agent": "Mozilla/5.0",
-                "Referer": LOGIN_PAGE_URL
-            }
-        });
-
-        const html = res.data;
-        const match = html.match(/sesskey\s*[:=]\s*['"]?([a-zA-Z0-9=]+)['"]?/);
-
-        if (match && match[1]) {
-            sessionKey = match[1];
-            console.log("🔑 New Session Key Fetched:", sessionKey);
-        } else {
-            console.log("⚠️ Session key not found. Attempting anyway.");
-        }
-    } catch (e) {
-        console.error("Error fetching session key:", e.message);
-        throw e; // Throw error to trigger re-login
-    }
-}
-
 // Fetch SMS API
 async function fetchSmsApi() {
     const url = getApiUrl();
     try {
         const res = await client.get(url, {
             headers: {
-                "User-Agent": "Mozilla/5.0",
+                "User-Agent": USER_AGENT,
                 "X-Requested-With": "XMLHttpRequest",
-                "Accept": "application/json, text/javascript, /; q=0.01",
+                "Accept": "application/json, text/javascript, */*; q=0.01",
                 "Referer": DASHBOARD_URL,
+                "Host": BASE_IP,
             },
         });
         return res.data;
     } catch (e) {
-        // Throw Error to trigger catch block in loop
         throw new Error(`Fetch SMS API error: ${e.message}`);
     }
 }
 
-// === MAIN LOOP WITH AUTO RE-LOGIN ===
+// === MAIN LOOP ===
 async function loop() {
     try {
         const data = await fetchSmsApi();
@@ -248,41 +240,36 @@ async function loop() {
 
             if (lastId === null) {
                 lastId = latest.id;
-                console.log("✅ Initial latest ID Set:", lastId);
-                // Optional: Send first msg on start
-                // await sendTelegramSMS(latest);
+                
+                await sendTelegramSMS(latest); 
             } else if (latest.id !== lastId) {
                 lastId = latest.id;
-                console.log("🔥 New SMS Found!", latest.id);
+                console.log("🔥 New SMS Found!", latest.displayId);
                 await sendTelegramSMS(latest);
             } else {
                 process.stdout.write("."); // Alive tick
             }
-            
-            // Wait 5 seconds and loop again
-            setTimeout(loop, 5000);
+
+            setTimeout(loop, 3000);
         } else {
-            // No data, just wait and retry
             process.stdout.write(".");
-            setTimeout(loop, 5000);
+            setTimeout(loop, 3000);
         }
 
     } catch (e) {
-        console.log("\n❌ Connection Error (Likely 503 or Session Expired).");
+        console.log("\n❌ Connection Error or Session Expired.");
         console.log("🔄 Re-authenticating in 5 seconds...");
 
-        // Wait 5s before trying to login
         await new Promise(resolve => setTimeout(resolve, 5000));
 
         try {
             const loggedIn = await performLoginAndSaveCookies();
             if (loggedIn) {
-                await fetchSessionKey();
-                console.log("✅ Re-login successful. Resuming watcher...");
-                loop(); // Resume loop
+                console.log("✅ Re-login successful. Resuming...");
+                loop(); 
             } else {
                 console.log("❌ Re-login failed. Retrying...");
-                loop(); // Retry loop (which will hit catch again if still broken)
+                loop(); 
             }
         } catch (loginErr) {
             console.error("❌ Fatal Login Error:", loginErr.message);
@@ -293,9 +280,8 @@ async function loop() {
 
 // Worker Start
 async function startWorker() {
-    console.log("🚀 Seven1Tel Bot Started...");
+    console.log("🚀 Seven1Tel Bot Started (Send-First Mode)...");
 
-    // First Login
     const ok = await performLoginAndSaveCookies();
     if (!ok) {
         console.error("❌ Initial Login failed. Retrying in 10s...");
@@ -303,9 +289,6 @@ async function startWorker() {
         return;
     }
 
-    await fetchSessionKey();
-    
-    // Start the loop
     loop();
 }
 
