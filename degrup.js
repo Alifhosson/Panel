@@ -1,5 +1,5 @@
 // sms-bot.js
-const axios = require("axios").default;
+const axios = require("axios");
 const tough = require("tough-cookie");
 const { wrapper } = require("axios-cookiejar-support");
 const cheerio = require("cheerio");
