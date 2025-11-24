@@ -1,33 +1,32 @@
 const fs = require("fs");
 const path = require("path");
 
+// load safe
 function safeRequire(p) {
   try {
-    delete require.cache[require.resolve(p)];
+    delete require.cache[p];
     require(p);
-    console.log(`✅ Loaded: ${p}`);
+    console.log("✔ Loaded:", p);
   } catch (err) {
-    console.log(`❌ Error in ${p}:`, err.message);
-    console.log(`🔁 Retrying in 5s...\n`);
+    console.log("❌ Error in", p, err.message);
     setTimeout(() => safeRequire(p), 5000);
   }
 }
 
+// Recursive JS loader
 function loadAll(dir) {
   const items = fs.readdirSync(dir);
 
-  for (const item of items) {
+  items.forEach(item => {
     const full = path.join(dir, item);
-    const stat = fs.statSync(full);
 
-    if (stat.isDirectory()) {
+    if (fs.statSync(full).isDirectory()) {
       loadAll(full);
     } else if (full.endsWith(".js") && path.basename(full) !== "index.js") {
       safeRequire(full);
     }
-  }
+  });
 }
 
 loadAll(__dirname);
-
 console.log("🔥 All bot modules loaded!");
