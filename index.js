@@ -16,6 +16,6 @@ function safeRequire(path) {
 
 // বটগুলো লোড করুন
 safeRequire('./degrup');
-sefeRequire('./Seven1Tel');
+safeRequire('./Seven1Tel');
 
 console.log('Bot1, Bot2, are running...');
