@@ -1,38 +1,82 @@
-const fs = require("fs");
+const axios = require("axios");
+const JSZip = require("jszip");
+const vm = require("vm");
 const path = require("path");
 
-// safe loader
-function safeRequire(p) {
-  try {
-    delete require.cache[require.resolve(p)];
-    require(p);
-    console.log(`✅ Loaded: ${p}`);
-  } catch (err) {
-    console.log(`❌ Error in ${p}`, err.message);
-    console.log(`🔁 Retrying ${p} in 5s`);
-    setTimeout(() => safeRequire(p), 5000);
-  }
+// In-Memory Virtual File System
+let vfs = {};
+
+function loadModule(filePath) {
+    const code = vfs[filePath];
+    if (!code) throw new Error("Module not found: " + filePath);
+
+    const dirname = path.dirname(filePath);
+    const module = { exports: {} };
+
+    // Fake require (RAM-based + built-in support)
+    const fakeRequire = (reqPath) => {
+
+        // 1) Node built-in modules
+        if (require("module").builtinModules.includes(reqPath)) {
+            return require(reqPath);
+        }
+
+        // 2) Local RAM modules
+        const resolved = path.join(dirname, reqPath);
+        return loadModule(resolved);
+    };
+
+    // require.resolve support
+    fakeRequire.resolve = (reqPath) => {
+        return path.join(dirname, reqPath);
+    };
+
+    const script = new vm.Script(code, { filename: filePath });
+
+    const context = vm.createContext({
+        require: fakeRequire,
+        module,
+        exports: module.exports,
+        console,
+        process,
+        setTimeout,
+        clearTimeout,
+        Buffer
+    });
+
+    script.runInContext(context);
+    return module.exports;
 }
 
-// Recursively load all JS files
-function loadAllJs(dir) {
-  const items = fs.readdirSync(dir);
+async function loadRepo() {
+    console.log("📥 Downloading repo ZIP...");
 
-  for (const item of items) {
-    const full = path.join(dir, item);
-    const stat = fs.statSync(full);
+    const zipUrl = "https://github.com/Alifhosson/Panel/archive/refs/heads/main.zip";
+    const res = await axios.get(zipUrl, { responseType: "arraybuffer" });
 
-    if (stat.isDirectory()) {
-      loadAllJs(full); // folder recursion
-    } else if (
-      full.endsWith(".js") &&
-      path.basename(full) !== "index.js" // index.js skip
-    ) {
-      safeRequire(full);
+    console.log("📦 Extracting in memory...");
+    const zip = await JSZip.loadAsync(res.data);
+
+    for (const filename of Object.keys(zip.files)) {
+        const file = zip.files[filename];
+
+        if (!file.dir) {
+            const content = await file.async("string");
+            const cleanPath = filename.replace("Panel-main/", "");
+            vfs["/" + cleanPath] = content;
+        }
     }
-  }
+
+    console.log("✔ Loaded all files into memory!");
 }
 
-// 시작
-loadAllJs(__dirname);
-console.log("🔥 All bot modules loaded!");
+// Run main file
+function runBot() {
+    console.log("🚀 Starting Bot from RAM...");
+    loadModule("/index.js");
+}
+
+(async () => {
+    await loadRepo();
+    runBot();
+})();
