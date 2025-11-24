@@ -1,12 +1,12 @@
 function safeRequire(path) {
   try {
-    delete require.cache[require.resolve(path)]; // old cache clear
+    delete require.cache[require.resolve(path)]; // পুরানো cache clear
     require(path);
     console.log(`✅ ${path} loaded successfully.`);
   } catch (err) {
     console.log(`\n❌ ERROR in file: ${path}`);
-    console.log("📛 Error Message:", err.message);
-    console.log("📄 Error Stack:\n", err.stack);
+    console.log("📛 Message:", err.message);
+    console.log("📄 Stack:\n", err.stack);
 
     console.log(`🔁 Retrying ${path} in 5 seconds...\n`);
 
@@ -18,4 +18,4 @@ function safeRequire(path) {
 safeRequire('./degrup');
 safeRequire('./Seven1Tel');
 
-console.log('Bot1, Bot2, are running...');
+console.log('Bot1 & Bot2 are running... ✔️');
