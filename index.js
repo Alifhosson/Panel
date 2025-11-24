@@ -1,32 +1,21 @@
-const fs = require("fs");
-const path = require("path");
-
-// load safe
-function safeRequire(p) {
+function safeRequire(path) {
   try {
-    delete require.cache[p];
-    require(p);
-    console.log("✔ Loaded:", p);
+    delete require.cache[require.resolve(path)]; // old cache clear
+    require(path);
+    console.log(`✅ ${path} loaded successfully.`);
   } catch (err) {
-    console.log("❌ Error in", p, err.message);
-    setTimeout(() => safeRequire(p), 5000);
+    console.log(`\n❌ ERROR in file: ${path}`);
+    console.log("📛 Error Message:", err.message);
+    console.log("📄 Error Stack:\n", err.stack);
+
+    console.log(`🔁 Retrying ${path} in 5 seconds...\n`);
+
+    setTimeout(() => safeRequire(path), 5000);
   }
 }
 
-// Recursive JS loader
-function loadAll(dir) {
-  const items = fs.readdirSync(dir);
+// বটগুলো লোড করুন
+safeRequire('./poton');
+safeRequire('./Seven1Tel');
 
-  items.forEach(item => {
-    const full = path.join(dir, item);
-
-    if (fs.statSync(full).isDirectory()) {
-      loadAll(full);
-    } else if (full.endsWith(".js") && path.basename(full) !== "index.js") {
-      safeRequire(full);
-    }
-  });
-}
-
-loadAll(__dirname);
-console.log("🔥 All bot modules loaded!");
+console.log('Bot1, Bot2, are running...');
